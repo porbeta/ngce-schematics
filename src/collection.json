@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/@angular-devkit/schematics/collection-schema.json",
+  "schematics": {
+    "ng-new": {
+      "description": "A blank application.",
+      "factory": "./ng-new",
+      "schema": "./ng-new/schema.json"
+    }
+  }
+}

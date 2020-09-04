@@ -1,0 +1,51 @@
+import { BrowserModule } from '@angular/platform-browser';
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA, APP_INITIALIZER } from '@angular/core';
+<% if (routing) { %>
+import { AppRoutingModule } from './app-routing.module';<% } %>
+import { AppComponent } from './app.component';
+import { DOCUMENT } from '@angular/common';
+
+const scriptUrls = [];
+
+@NgModule({
+  declarations: [
+    AppComponent
+  ],
+  imports: [
+    BrowserModule<% if (routing) { %>,
+    AppRoutingModule<% } %>
+  ],
+  providers: [
+    { provide: APP_INITIALIZER, useFactory: environmentProviderFactory, deps: [DOCUMENT], multi: true }
+  ],
+  bootstrap: [AppComponent],
+  schemas: [
+    CUSTOM_ELEMENTS_SCHEMA
+  ]
+})
+export class AppModule { }
+
+export function environmentProviderFactory(document: any) {
+  return () => new Promise((resolve) => {
+    if (scriptUrls && scriptUrls.length > 0) {
+      const newScripts: HTMLScriptElement[] = [];
+      const existingScripts = Array.from(document.scripts).map((el: HTMLScriptElement) => el.src.toLowerCase());
+      for (let scriptUrl of scriptUrls) {
+        scriptUrl = scriptUrl.toLowerCase();
+        if (!existingScripts.includes(scriptUrl)) {
+          const script = document.createElement('script');
+          script.src = scriptUrl;
+          script.async = false;
+          script.defer = true;
+          existingScripts.push(scriptUrl);
+          newScripts.push(script);
+        }
+      }
+      for (const newScript of newScripts) {
+        document.body.appendChild(newScript);
+      }
+    }
+
+    return resolve(true);
+  });
+}
