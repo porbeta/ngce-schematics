@@ -1,4 +1,4 @@
-# Angular Schematics - Custome Elements
+# Angular Schematics - Custom Elements
 
 This repository is a Schematic implementation used to create Angular applications that support custom elements.
 
