@@ -5,9 +5,10 @@ import {
   findPropertyInAstObject,
   insertPropertyInAstObjectInOrder,
 } from '@schematics/angular/utility/json-utils';
+import * as ts from '@schematics/angular/third_party/github.com/Microsoft/TypeScript/lib/typescript';
 
-export function updateScript(tree: Tree, scriptName: string, scriptValue: string, packageJsonPath: string, overwrite: boolean = false): void {
-    const packageJsonAst = _readPackageJson(tree, packageJsonPath);
+export function updatePackageJsonScript(tree: Tree, scriptName: string, scriptValue: string, packageJsonPath: string, overwrite: boolean = false): void {
+    const packageJsonAst = _getJsonFileAst(tree, packageJsonPath);
     const depsNode = findPropertyInAstObject(packageJsonAst, 'scripts');
     const recorder = tree.beginUpdate(packageJsonPath);
     
@@ -32,16 +33,41 @@ export function updateScript(tree: Tree, scriptName: string, scriptValue: string
     tree.commitUpdate(recorder);
 }
 
-function _readPackageJson(tree: Tree, packageJsonPath: string): JsonAstObject {
-    const buffer = tree.read(packageJsonPath);
+export function updateBuilderToNgxBuildPlus(tree: Tree, angularJsonPath: string, name: string) {
+    const angularJsonSource = _readJsonFileIntoSource(tree, angularJsonPath);
+    
+    let modifiedAngularJsonObj = JSON.parse(angularJsonSource.getFullText());
+    modifiedAngularJsonObj["projects"][name]["architect"]["build"]["builder"] = "ngx-build-plus:browser";
+
+    const recorder = tree.beginUpdate(angularJsonPath);
+
+    recorder.remove(0, angularJsonSource.getFullText().length);
+    recorder.insertLeft(0, JSON.stringify(modifiedAngularJsonObj, null, 4));
+
+    tree.commitUpdate(recorder);
+}
+
+function _readJsonFile(tree: Tree, path: string) {
+    const buffer = tree.read(path);
     if (buffer === null) {
-        throw new SchematicsException('Could not read package.json.');
+        throw new SchematicsException(`Could not read ${path}.`);
     }
-    const content = buffer.toString();
+    
+    return buffer.toString();
+}
+
+function _readJsonFileIntoSource(tree: Tree, path: string) {
+    const sourceText = _readJsonFile(tree, path);
+
+    return ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true);
+}
+
+function _getJsonFileAst(tree: Tree, jsonPath: string): JsonAstObject {
+    const content = _readJsonFile(tree, jsonPath);
 
     const packageJson = parseJsonAst(content, JsonParseMode.Strict);
     if (packageJson.kind != 'object') {
-        throw new SchematicsException('Invalid package.json. Was expecting an object');
+        throw new SchematicsException(`Invalid ${jsonPath}. Was expecting an object`);
     }
 
     return packageJson;

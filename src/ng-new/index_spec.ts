@@ -7,7 +7,7 @@ const collectionPath = path.join(__dirname, '../collection.json');
 
 
 describe('ng-new', () => {
-  it('creates an application', async () => {
+  it('creates a custom element', async () => {
     const runner = new SchematicTestRunner('ng-new', collectionPath);
     const tree = await runner.runSchematicAsync('ng-new', { name: "custom-element", version: "1.0.0", applicationType: "application" }, Tree.empty()).toPromise();
 
@@ -15,6 +15,7 @@ describe('ng-new', () => {
       "/custom-element/angular.json",
       "/custom-element/package.json",
       "/custom-element/README.md",
+      "/custom-element/tsconfig.base.json",
       "/custom-element/tsconfig.json",
       "/custom-element/tslint.json",
       "/custom-element/.editorconfig",
@@ -52,12 +53,12 @@ describe('ng-new', () => {
       "/custom-element/angular.json",
       "/custom-element/package.json",
       "/custom-element/README.md",
+      "/custom-element/tsconfig.base.json",
       "/custom-element/tsconfig.json",
       "/custom-element/tslint.json",
       "/custom-element/.editorconfig",
       "/custom-element/.gitignore",
       "/custom-element/.browserslistrc",
-      "/custom-element/.npmignore",
       "/custom-element/karma.conf.js",
       "/custom-element/tsconfig.app.json",
       "/custom-element/tsconfig.spec.json",

@@ -1,198 +1,113 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
 import {
-//  JsonObject,
-  join,
-  normalize,
-  strings,
-} from '@angular-devkit/core';
-import {
-  MergeStrategy,
+  Rule,
+  SchematicContext,
+  SchematicsException,
+  Tree,
   apply,
-  applyTemplates,
-  filter,
+  chain,
+  empty,
   mergeWith,
   move,
   noop,
-  url
+  schematic,
 } from '@angular-devkit/schematics';
-import { NodeDependencyType, addPackageJsonDependency } from '@schematics/angular/utility/dependencies';
-import { Rule, SchematicContext, Tree, chain, externalSchematic } from '@angular-devkit/schematics';
-import { NodePackageInstallTask } from '@angular-devkit/schematics/tasks';
+import {
+  NodePackageInstallTask,
+  NodePackageLinkTask,
+  RepositoryInitializerTask,
+} from '@angular-devkit/schematics/tasks';
+import { Schema as ApplicationOptions } from '../application/schema';
+import { validateProjectName } from '@schematics/angular/utility/validation';
+import { Schema as WorkspaceOptions } from '../workspace/schema';
 import { Schema as NgNewOptions, ApplicationType } from './schema';
-import { Schema as ComponentOptions } from '@schematics/angular/component/schema';
-import { updateScript } from '../utility/npm-scripts';
-import { hasFile } from '../utility/find-file';
-
-function addCustomElementDependenciesToPackageJson(options: NgNewOptions, packageJsonPath: string): Rule {
-  return (host: Tree, context: SchematicContext) => {
-    [
-      {
-        type: NodeDependencyType.Default,
-        name: '@angular/elements',
-        version: "latest",
-      },
-      {
-        type: NodeDependencyType.Default,
-        name: 'concat',
-        version: "latest",
-      },
-      {
-        type: NodeDependencyType.Default,
-        name: 'document-register-element',
-        version: "latest",
-      }
-    ].forEach(dependency => addPackageJsonDependency(host, dependency, packageJsonPath));
-
-    if (!options.skipInstall) {
-      context.addTask(new NodePackageInstallTask());
-    }
-
-    return host;
-  };
-}
-
-function addApplicationDependenciesToPackageJson(options: NgNewOptions, packageJsonPath: string): Rule {
-  return (host: Tree, context: SchematicContext) => {
-    [
-      {
-        type: NodeDependencyType.Default,
-        name: 'document-register-element',
-        version: "latest",
-      }
-    ].forEach(dependency => addPackageJsonDependency(host, dependency, packageJsonPath));
-
-    if (!options.skipInstall) {
-      context.addTask(new NodePackageInstallTask());
-    }
-
-    return host;
-  };
-}
-
-function updateCustomElementsNpmScripts(packageJsonPath: string): Rule {
-  return (host: Tree) => {
-    updateScript(
-      host, 
-      "build", 
-      "ng build --prod --output-hashing none && concat -o dist/plugin.js dist/custom-element/runtime.js dist/custom-element/polyfills.js dist/custom-element/main.js", 
-      packageJsonPath,
-      true
-    );
-    
-    return host;
-  };
-}
-
-function updateCustomElementFiles(options: NgNewOptions, componentOptions: Partial<ComponentOptions>, appDir: string, appRootSelector: string): Rule {
-  return mergeWith(
-    apply(url('./custom-element-files'), [
-    componentOptions.inlineTemplate ? filter(path => !path.endsWith('.html.template')) : noop(),
-    componentOptions.skipTests ? filter(path => !path.endsWith('.spec.ts.template')) : noop(),
-    applyTemplates({
-      utils: strings,
-      ...options,
-      selector: appRootSelector,
-      ...componentOptions,
-    }),
-      move(appDir),
-    ]), MergeStrategy.Overwrite)
-}
-
-function updateApplicationFiles(options: NgNewOptions, componentOptions: Partial<ComponentOptions>, appDir: string, appRootSelector: string): Rule {
-  return (host: Tree) => {
-    const routing = hasFile(host, `${appDir}/src/app/`, "app-routing.module.ts");
-    
-    return mergeWith(
-      apply(url('./application-files'), [
-      componentOptions.inlineTemplate ? filter(path => !path.endsWith('.html.template')) : noop(),
-      componentOptions.skipTests ? filter(path => !path.endsWith('.spec.ts.template')) : noop(),
-      applyTemplates({
-        utils: strings,
-        ...options,
-        selector: appRootSelector,
-        ...componentOptions,
-        routing
-      }),
-        move(appDir),
-      ]), MergeStrategy.Overwrite);
-  };
-}
 
 
-// You don't have to export the function as default. You can also have more than one rule factory
-// per file.
 export default function(options: NgNewOptions): Rule {
-  return async (_tree: Tree, _context: SchematicContext) => {
+  if (!options.name) {
+    throw new SchematicsException(`Invalid options, "name" is required.`);
+  }
 
-    const newProjectRoot = '';
-    const appDir = join(normalize(newProjectRoot), options.name);
-    const packageJsonPath = `${appDir}/package.json`;
+  validateProjectName(options.name);
 
-    const isCustomElement = options.applicationType === ApplicationType.CustomElement ? true: false;
+  if (!options.directory) {
+    options.directory = options.name;
+  }
 
-    const appRootSelector = `${options.prefix}-root`;
-    const componentOptions: Partial<ComponentOptions> = !options.minimal ?
-      {
-        inlineStyle: options.inlineStyle,
-        skipTests: options.skipTests,
-        style: options.style,
-        viewEncapsulation: options.viewEncapsulation,
-      } :
-      {
-        inlineStyle: true,
-        skipTests: true,
-        style: options.style,
-      };
+  const isCustomElement = options.applicationType === ApplicationType.CustomElement ? true: false;
 
-    return chain([
-      isCustomElement ? chain([
-        externalSchematic('@schematics/angular', 'ng-new', {
-          name: options.name,
-          routing: false,
-          commit: options.commit,
-          createApplication: options.createApplication,
-          directory: options.directory,
-          inlineStyle: options.inlineStyle,
-          inlineTemplate: options.inlineTemplate,
-          linkCli: options.linkCli,
-          minimal: options.minimal,
-          newProjectRoot: options.newProjectRoot,
-          packageManager: options.packageManager,
-          prefix: options.prefix,
-          strict: options.strict,
-          style: options.style,
-          viewEncapsulation: options.viewEncapsulation,
-          version: options.version,
-          skipTests: options.skipTests,
-          skipInstall: options.skipInstall,
-          skipGit: options.skipGit
-        }),
-        addCustomElementDependenciesToPackageJson(options, packageJsonPath),
-        updateCustomElementsNpmScripts(packageJsonPath),
-        updateCustomElementFiles(options, componentOptions, appDir, appRootSelector)
-      ]): chain([
-        externalSchematic('@schematics/angular', 'ng-new', {
-          name: options.name,
-          commit: options.commit,
-          createApplication: options.createApplication,
-          directory: options.directory,
-          inlineStyle: options.inlineStyle,
-          inlineTemplate: options.inlineTemplate,
-          linkCli: options.linkCli,
-          minimal: options.minimal,
-          newProjectRoot: options.newProjectRoot,
-          packageManager: options.packageManager,
-          prefix: options.prefix,
-          strict: options.strict,
-          style: options.style,
-          viewEncapsulation: options.viewEncapsulation,
-          version: options.version,
-          skipTests: options.skipTests,
-          skipInstall: options.skipInstall,
-          skipGit: options.skipGit
-        }),
-        addApplicationDependenciesToPackageJson(options, packageJsonPath),
-        updateApplicationFiles(options, componentOptions, appDir, appRootSelector)
-      ])
-    ]);
+  const workspaceOptions: WorkspaceOptions = {
+    name: options.name,
+    version: options.version,
+    newProjectRoot: options.newProjectRoot,
+    minimal: options.minimal,
+    strict: options.strict,
+    packageManager: options.packageManager,
   };
+  
+  const applicationOptions: ApplicationOptions = {
+    projectRoot: '',
+    name: options.name,
+    inlineStyle: options.inlineStyle,
+    inlineTemplate: options.inlineTemplate,
+    prefix: options.prefix,
+    viewEncapsulation: options.viewEncapsulation,
+    routing: isCustomElement ? false : undefined,
+    style: options.style,
+    skipTests: options.skipTests,
+    skipPackageJson: false,
+    // always 'skipInstall' here, so that we do it after the move
+    skipInstall: true,
+    strict: options.strict,
+    minimal: options.minimal,
+    legacyBrowsers: options.legacyBrowsers,
+    applicationType: options.applicationType,
+    updateBuildScript: true
+  };
+
+  return chain([
+    mergeWith(
+      apply(empty(), [
+        schematic('workspace', workspaceOptions),
+        options.createApplication ? schematic('application', applicationOptions) : noop,
+        move(options.directory),
+      ]),
+    ),
+    (_host: Tree, context: SchematicContext) => {
+      let packageTask;
+      if (!options.skipInstall) {
+        packageTask = context.addTask(
+          new NodePackageInstallTask({
+            workingDirectory: options.directory,
+            packageManager: options.packageManager,
+          }),
+        );
+        if (options.linkCli) {
+          packageTask = context.addTask(
+            new NodePackageLinkTask('@angular/cli', options.directory),
+            [packageTask],
+          );
+        }
+      }
+      if (!options.skipGit) {
+        const commit = typeof options.commit == 'object'
+          ? options.commit
+          : (!!options.commit ? {} : false);
+
+        context.addTask(
+          new RepositoryInitializerTask(
+            options.directory,
+            commit,
+          ),
+          packageTask ? [packageTask] : [],
+        );
+      }
+    },
+  ]);
 }
