@@ -158,7 +158,7 @@ export default function(options: ApplicationOptions): Rule {
       };
 
     return chain([
-      externalSchematic('@schematics/angular', 'application', { ...options, routing: isCustomElement ? false : undefined }),
+      externalSchematic('@schematics/angular', 'application', { ...options, routing: isCustomElement ? false : options.routing }),
       isCustomElement ? chain([
         addCustomElementDependenciesToPackageJson(options, packageJsonPath),
         options.updateBuildScript ? updateCustomElementsNpmScripts(packageJsonPath) : noop,

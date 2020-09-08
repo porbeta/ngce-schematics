@@ -58,7 +58,7 @@ export default function(options: NgNewOptions): Rule {
     inlineTemplate: options.inlineTemplate,
     prefix: options.prefix,
     viewEncapsulation: options.viewEncapsulation,
-    routing: isCustomElement ? false : undefined,
+    routing: isCustomElement ? false : options.routing,
     style: options.style,
     skipTests: options.skipTests,
     skipPackageJson: false,
