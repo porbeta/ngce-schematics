@@ -1,6 +1,6 @@
 {
   "name": "@ngce/schematics",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "a Schematic implementation used to create Angular applications that support custom elements",
   "scripts": {
     "build": "tsc -p tsconfig.json",
