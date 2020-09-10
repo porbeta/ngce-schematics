@@ -1,7 +1,7 @@
 {
   "name": "@ngce/schematics",
   "version": "0.0.0",
-  "description": "A blank schematics",
+  "description": "a Schematic implementation used to create Angular applications that support custom elements",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && jasmine src/**/*_spec.js"
