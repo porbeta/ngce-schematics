@@ -3,7 +3,7 @@
 This is a Schematic implementation used to create Angular applications that support [custom elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements).
 
 ## Setup
-The Schematic implementation is an [Node.js package](https://www.npmjs.com/package/@ngce/schematics) that can be installed by running run the following:
+The Schematic implementation is a [Node.js package](https://www.npmjs.com/package/@ngce/schematics) that can be installed by running run the following:
 
 ```bash
 npm install @ngce/schematics
