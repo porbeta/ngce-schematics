@@ -93,5 +93,5 @@ To make the new custom element accessible to `custom-elements-app`, add the foll
 Additionally, add a script URL to the `scriptUrls` constant in the `src/app/app.module.ts` file of `custom-elements-app`:
 
 ```typescript
-const scriptUrls = ["/dist/links-element/main.js"];
+const scriptUrls = ["/dist/example-element/main.js"];
 ```
