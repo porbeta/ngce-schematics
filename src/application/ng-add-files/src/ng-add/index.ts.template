@@ -1,0 +1,112 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+import {
+    Rule,
+    SchematicsException,
+    Tree,
+    chain
+  } from '@angular-devkit/schematics';
+  import { findNodes } from '@schematics/angular/utility/ast-utils';
+  import * as ts from '@schematics/angular/third_party/github.com/Microsoft/TypeScript/lib/typescript';
+  import packageJson from '../../package.json';
+  
+  function _readJsonFile(tree: Tree, path: string) {
+      const buffer = tree.read(path);
+      if (buffer === null) {
+          throw new SchematicsException(`Could not read ${path}.`);
+      }
+      
+      return buffer.toString();
+  }
+  
+  function _readJsonFileIntoSource(tree: Tree, path: string) {
+      const sourceText = _readJsonFile(tree, path);
+  
+      return ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true);
+  }
+  
+  function findNodeByIdentifier(nodes: ts.Node[], matchString: string) {
+      const nodeList = nodes.filter(node => {
+          const variables = node.getChildren()
+          .filter(child => child.kind === ts.SyntaxKind.Identifier)
+          .map(n => (n as ts.StringLiteral).text);
+  
+          return variables.filter(variable => variable === matchString).length === 1;
+      });
+  
+      if(nodeList.length == 1) {
+          return nodeList[0];
+      }
+  
+      return null;
+  }
+  
+  function addScriptUrlToAppModule(tree: Tree, path: string) {
+  
+      const source = _readJsonFileIntoSource(tree, path);
+      const allVariables = findNodes(source, ts.SyntaxKind.VariableDeclaration);
+  
+      // get nodes that map to variable name 'scriptUrls'
+      const scriptUrls = findNodeByIdentifier(allVariables, 'scriptUrls');
+  
+      if(scriptUrls != null) {
+          // get nodes that map to import statements from the file fileName
+          const scriptUrlsArray = findNodes(scriptUrls, ts.SyntaxKind.ArrayLiteralExpression)[0];
+          const scriptUrlStrings = findNodes(scriptUrlsArray, ts.SyntaxKind.StringLiteral);
+  
+          let toInsert = "";
+  
+          if(scriptUrlStrings.length > 0) {
+              toInsert += ",\n          "
+              
+          }
+          toInsert += `"/<%= dasherize(name) %>/dist/<%= dasherize(name) %>/main.js"`;
+  
+          const recorder = tree.beginUpdate(path);
+          recorder.insertLeft(scriptUrlsArray.getEnd() - 1, toInsert);
+          tree.commitUpdate(recorder);
+      }
+  }
+  
+  function addGlobAssetForCustomElement(tree: Tree, path: string) {
+      const angularJsonSource = _readJsonFileIntoSource(tree, path);
+      
+      let modifiedAngularJsonObj = JSON.parse(angularJsonSource.getFullText());
+      const defaultProject = modifiedAngularJsonObj["defaultProject"];
+  
+      modifiedAngularJsonObj["projects"][defaultProject]["architect"]["build"]["options"]["assets"].push({
+          "glob": "**/*",
+          "input": "./node_modules/" + packageJson.name,
+          "output": "./<%= dasherize(name) %>"
+      });
+  
+      const recorder = tree.beginUpdate(path);
+  
+      recorder.remove(0, angularJsonSource.getFullText().length);
+      recorder.insertLeft(0, JSON.stringify(modifiedAngularJsonObj, null, 4));
+  
+      tree.commitUpdate(recorder);
+  }
+  
+  export default function (_options: any): Rule {
+      return async (_host: Tree) => {
+          const modulePath = `src/app/app.module.ts`
+          const angularJsonPath = `angular.json`;
+  
+          return chain([
+              (host: Tree) => {
+                  addScriptUrlToAppModule(host, modulePath);
+                  return host;
+              },
+              (host: Tree) => {
+                  addGlobAssetForCustomElement(host, angularJsonPath);
+                  return host;
+              },
+          ]);
+      }
+  }

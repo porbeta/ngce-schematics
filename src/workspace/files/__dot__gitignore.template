@@ -44,3 +44,7 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
+
+src/ng-add/index.js
+src/ng-add/index.d.ts
+src/ng-add/index.js.map

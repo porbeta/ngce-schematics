@@ -33,6 +33,24 @@ export function updatePackageJsonScript(tree: Tree, scriptName: string, scriptVa
     tree.commitUpdate(recorder);
 }
 
+export function updatePackageJsonSchematics(tree: Tree, schematicsValue: string, packageJsonPath: string, overwrite: boolean = false): void {
+    const packageJsonAst = _getJsonFileAst(tree, packageJsonPath);
+    const depsNode = findPropertyInAstObject(packageJsonAst, 'schematics');
+    const recorder = tree.beginUpdate(packageJsonPath);
+    
+    if (!depsNode) {
+        // Haven't found the dependencies key, add it to the root of the package.json.
+        appendPropertyInAstObject(recorder, packageJsonAst, 'schematics', schematicsValue, 2);
+    } else if (overwrite) {
+        // Package found, update version if overwrite.
+        const { end, start } = depsNode;
+        recorder.remove(start.offset, end.offset - start.offset);
+        recorder.insertRight(start.offset, JSON.stringify(schematicsValue));
+    }
+
+    tree.commitUpdate(recorder);
+}
+
 export function updateBuilderToNgxBuildPlus(tree: Tree, angularJsonPath: string, name: string) {
     const angularJsonSource = _readJsonFileIntoSource(tree, angularJsonPath);
     

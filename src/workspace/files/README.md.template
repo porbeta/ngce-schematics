@@ -1,4 +1,4 @@
-# <%= utils.classify(name) %>
+# <%= classify(name) %>
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version <%= version %>.
 

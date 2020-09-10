@@ -19,7 +19,7 @@ import { Rule, SchematicContext, Tree, chain, externalSchematic } from '@angular
 import { NodePackageInstallTask } from '@angular-devkit/schematics/tasks';
 import { Schema as ApplicationOptions, ApplicationType } from '../application/schema';
 import { Schema as ComponentOptions } from '@schematics/angular/component/schema';
-import { updatePackageJsonScript, updateBuilderToNgxBuildPlus } from '../utility/npm-scripts';
+import { updatePackageJsonScript, updatePackageJsonSchematics, updateBuilderToNgxBuildPlus } from '../utility/npm-scripts';
 import { hasFile } from '../utility/find-file';
 
 
@@ -69,15 +69,40 @@ function addApplicationDependenciesToPackageJson(options: ApplicationOptions, pa
   };
 }
 
-function updateCustomElementsNpmScripts(packageJsonPath: string): Rule {
+function updateCustomElementsNpmScripts(packageJsonPath: string, name: string, updateBuildScript: boolean | undefined): Rule {
   return (host: Tree) => {
-    updatePackageJsonScript(
-      host, 
-      "build", 
-      "ng build --prod --output-hashing none --single-bundle true", 
-      packageJsonPath,
-      true
-    );
+    if(updateBuildScript) {
+      updatePackageJsonScript(
+        host, 
+        `build-${name}`, 
+        `ng build --prod --output-hashing none --single-bundle true && tsc -p tsconfig.${name}.json`, 
+        packageJsonPath,
+        true
+      );
+
+      updatePackageJsonScript(
+        host, 
+        "build", 
+        `npm run build-${name}`, 
+        packageJsonPath,
+        true
+      );
+
+      updatePackageJsonSchematics(
+        host,
+        "./src/collection.json",
+        packageJsonPath,
+        true
+      )
+    } else {
+      updatePackageJsonScript(
+        host, 
+        `build-${name}`, 
+        `ng build --prod --output-hashing none --single-bundle true --project ${name}`, 
+        packageJsonPath,
+        true
+      );
+    }
     
     return host;
   };
@@ -89,10 +114,22 @@ function updateCustomElementFiles(options: ApplicationOptions, componentOptions:
     componentOptions.inlineTemplate ? filter(path => !path.endsWith('.html.template')) : noop(),
     componentOptions.skipTests ? filter(path => !path.endsWith('.spec.ts.template')) : noop(),
     applyTemplates({
-      utils: strings,
+      ...strings,
       ...options,
       selector: appRootSelector,
       ...componentOptions,
+      'dot': '.',
+    }),
+      move(appDir),
+    ]), MergeStrategy.Overwrite)
+}
+
+function updateNgAddFiles(options: ApplicationOptions, appDir: string): Rule {
+  return mergeWith(
+    apply(url('./ng-add-files'), [
+    applyTemplates({
+      ...strings,
+      ...options,
     }),
       move(appDir),
     ]), MergeStrategy.Overwrite)
@@ -107,7 +144,7 @@ function updateApplicationFiles(options: ApplicationOptions, componentOptions: P
       componentOptions.inlineTemplate ? filter(path => !path.endsWith('.html.template')) : noop(),
       componentOptions.skipTests ? filter(path => !path.endsWith('.spec.ts.template')) : noop(),
       applyTemplates({
-        utils: strings,
+        ...strings,
         ...options,
         selector: appRootSelector,
         ...componentOptions,
@@ -161,8 +198,9 @@ export default function(options: ApplicationOptions): Rule {
       externalSchematic('@schematics/angular', 'application', { ...options, routing: isCustomElement ? false : options.routing }),
       isCustomElement ? chain([
         addCustomElementDependenciesToPackageJson(options, packageJsonPath),
-        options.updateBuildScript ? updateCustomElementsNpmScripts(packageJsonPath) : noop,
+        updateCustomElementsNpmScripts(packageJsonPath, strings.dasherize(options.name), options.updateBuildScript),
         updateCustomElementFiles(options, componentOptions, appDir, appRootSelector),
+        options.updateBuildScript ? updateNgAddFiles(options, appDir) : noop,
         updateAngularJsonBuilder(options, angularJsonPath)
       ]): chain([
         addApplicationDependenciesToPackageJson(options, packageJsonPath),

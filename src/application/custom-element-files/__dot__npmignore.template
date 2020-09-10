@@ -8,3 +8,7 @@
 
 # Include the following
 !dist/**/*
+!src/ng-add/index.js
+!src/ng-add/index.d.ts
+!src/ng-add/index.js.map
+!src/collection.json

@@ -25,7 +25,7 @@ export default function (options: WorkspaceOptions): Rule {
   return mergeWith(apply(url('./files'), [
     options.minimal ? filter(path => !minimalFilesRegExp.test(path)) : noop(),
     applyTemplates({
-      utils: strings,
+      ...strings,
       ...options,
       'dot': '.',
       latestVersions,

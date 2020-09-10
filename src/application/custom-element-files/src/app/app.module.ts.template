@@ -17,6 +17,6 @@ export class AppModule {
   constructor(private injector: Injector) { }
 
   ngDoBootstrap(): void {
-    customElements.define('<%= utils.dasherize(name) %>', createCustomElement(AppComponent, { injector: this.injector }));
+    customElements.define('<%= dasherize(name) %>', createCustomElement(AppComponent, { injector: this.injector }));
   }
 }
