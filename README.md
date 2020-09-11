@@ -73,25 +73,10 @@ If you want to add a custom element application called `example-element` to an e
 ng generate @ngce/schematics:application --applicationType=customElement example-element
 ```
 
+This will configure `src/app/app.module.ts` in your main application to use the `example-element` custom element tag.
+
 You can then build the custom element by using a command that follows the pattern `npm run build-<custom_element_name>`:
 
 ```bash
 npm run build-example-element
-```
-
-To make the new custom element accessible to `custom-elements-app`, add the following to the `projects.custom-elements-app.architect.build.options.assets` array of your `angular.json` file:
-
-
-```typescript
-{
-    "glob": "**/*",
-    "input": "./dist",
-    "output": "./dist"
-}
-```
-
-Additionally, add a script URL to the `scriptUrls` constant in the `src/app/app.module.ts` file of `custom-elements-app`:
-
-```typescript
-const scriptUrls = ["/dist/example-element/main.js"];
 ```

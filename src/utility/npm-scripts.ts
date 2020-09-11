@@ -5,6 +5,7 @@ import {
   findPropertyInAstObject,
   insertPropertyInAstObjectInOrder,
 } from '@schematics/angular/utility/json-utils';
+import { findNodes } from '@schematics/angular/utility/ast-utils';
 import * as ts from '@schematics/angular/third_party/github.com/Microsoft/TypeScript/lib/typescript';
 
 export function updatePackageJsonScript(tree: Tree, scriptName: string, scriptValue: string, packageJsonPath: string, overwrite: boolean = false): void {
@@ -65,6 +66,60 @@ export function updateBuilderToNgxBuildPlus(tree: Tree, angularJsonPath: string,
     tree.commitUpdate(recorder);
 }
 
+export function addGlobAssetForDist(tree: Tree, path: string) {
+    const angularJsonSource = _readJsonFileIntoSource(tree, path);
+    
+    let modifiedAngularJsonObj = JSON.parse(angularJsonSource.getFullText());
+    const defaultProject = modifiedAngularJsonObj["defaultProject"];
+
+    modifiedAngularJsonObj["projects"][defaultProject]["architect"]["build"]["options"]["assets"].push({
+        "glob": "**/*",
+        "input": "./dist",
+        "output": "./dist"
+    });
+
+    const recorder = tree.beginUpdate(path);
+
+    recorder.remove(0, angularJsonSource.getFullText().length);
+    recorder.insertLeft(0, JSON.stringify(modifiedAngularJsonObj, null, 4));
+
+    tree.commitUpdate(recorder);
+}
+
+
+export function addScriptUrlToAppModule(tree: Tree, path: string, name: string) {
+  
+    try {
+        const source = _readJsonFileIntoSource(tree, path);
+        const allVariables = findNodes(source, ts.SyntaxKind.VariableDeclaration);
+
+        // get nodes that map to variable name 'scriptUrls'
+        const scriptUrls = _findNodeByIdentifier(allVariables, 'scriptUrls');
+
+        if(scriptUrls != null) {
+            // get nodes that map to import statements from the file fileName
+            const scriptUrlsArray = findNodes(scriptUrls, ts.SyntaxKind.ArrayLiteralExpression)[0];
+            const scriptUrlStrings = findNodes(scriptUrlsArray, ts.SyntaxKind.StringLiteral);
+
+            let toInsert = "";
+
+            if(scriptUrlStrings.length > 0) {
+                toInsert += ",\n          "
+                
+            }
+            toInsert += `"/dist/${name}/main.js"`;
+
+            const recorder = tree.beginUpdate(path);
+            recorder.insertLeft(scriptUrlsArray.getEnd() - 1, toInsert);
+            tree.commitUpdate(recorder);
+        }
+    } catch(e) {
+        if(e.message !== "Could not read src/app/app.module.ts.") {
+            throw e;
+        }
+    }
+}
+
 function _readJsonFile(tree: Tree, path: string) {
     const buffer = tree.read(path);
     if (buffer === null) {
@@ -89,4 +144,20 @@ function _getJsonFileAst(tree: Tree, jsonPath: string): JsonAstObject {
     }
 
     return packageJson;
+}
+
+function _findNodeByIdentifier(nodes: ts.Node[], matchString: string) {
+    const nodeList = nodes.filter(node => {
+        const variables = node.getChildren()
+        .filter(child => child.kind === ts.SyntaxKind.Identifier)
+        .map(n => (n as ts.StringLiteral).text);
+
+        return variables.filter(variable => variable === matchString).length === 1;
+    });
+
+    if(nodeList.length == 1) {
+        return nodeList[0];
+    }
+
+    return null;
 }

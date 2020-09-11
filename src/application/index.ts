@@ -19,7 +19,13 @@ import { Rule, SchematicContext, Tree, chain, externalSchematic } from '@angular
 import { NodePackageInstallTask } from '@angular-devkit/schematics/tasks';
 import { Schema as ApplicationOptions, ApplicationType } from '../application/schema';
 import { Schema as ComponentOptions } from '@schematics/angular/component/schema';
-import { updatePackageJsonScript, updatePackageJsonSchematics, updateBuilderToNgxBuildPlus } from '../utility/npm-scripts';
+import {
+  updatePackageJsonScript,
+  updatePackageJsonSchematics,
+  updateBuilderToNgxBuildPlus,
+  addGlobAssetForDist,
+  addScriptUrlToAppModule
+} from '../utility/npm-scripts';
 import { hasFile } from '../utility/find-file';
 
 
@@ -163,6 +169,22 @@ function updateAngularJsonBuilder(options: ApplicationOptions, angularJsonPath: 
   }
 }
 
+function updateAssetsForApplicationCustomElements(angularJsonPath: string): Rule {
+  return (host: Tree) => {
+    addGlobAssetForDist(host, angularJsonPath);
+
+    return host;
+  }
+}
+
+function addScriptUrlForLocalCustomElement(appModulePath: string, name: string): Rule {
+  return (host: Tree) => {
+    addScriptUrlToAppModule(host, appModulePath, name);
+
+    return host;
+  }
+} 
+
 // You don't have to export the function as default. You can also have more than one rule factory
 // per file.
 export default function(options: ApplicationOptions): Rule {
@@ -177,6 +199,7 @@ export default function(options: ApplicationOptions): Rule {
 
     const packageJsonPath = `package.json`;
     const angularJsonPath = `angular.json`;
+    const appModulePath = `src/app/app.module.ts`;
 
     const isCustomElement = options.applicationType === ApplicationType.CustomElement ? true: false;
 
@@ -200,11 +223,12 @@ export default function(options: ApplicationOptions): Rule {
         addCustomElementDependenciesToPackageJson(options, packageJsonPath),
         updateCustomElementsNpmScripts(packageJsonPath, strings.dasherize(options.name), options.updateBuildScript),
         updateCustomElementFiles(options, componentOptions, appDir, appRootSelector),
-        options.updateBuildScript ? updateNgAddFiles(options, appDir) : noop,
+        options.updateBuildScript ? updateNgAddFiles(options, appDir) : addScriptUrlForLocalCustomElement(appModulePath, strings.dasherize(options.name)),
         updateAngularJsonBuilder(options, angularJsonPath)
       ]): chain([
         addApplicationDependenciesToPackageJson(options, packageJsonPath),
-        updateApplicationFiles(options, componentOptions, appDir, appRootSelector)
+        updateApplicationFiles(options, componentOptions, appDir, appRootSelector),
+        updateAssetsForApplicationCustomElements(angularJsonPath)
       ])
     ]);
   };
